@@ -15,7 +15,6 @@ square_types = {
     -50: '🟢'  # Active White
 }
 
-
 def get_start_pieces_pos(start_row, end_row, size) -> list:
     """
     Function to set up pieces on black squares
