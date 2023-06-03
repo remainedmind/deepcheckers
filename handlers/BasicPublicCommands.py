@@ -14,63 +14,23 @@ from aiogram.utils.keyboard import InlineKeyboardBuilder
 from aiogram.types import (ReplyKeyboardRemove, ReplyKeyboardMarkup,
                            KeyboardButton, InlineKeyboardMarkup, InlineKeyboardButton)
 
-kb = InlineKeyboardMarkup(inline_keyboard=[
-    # '🔴🟢'
-
-    [InlineKeyboardButton(text="🔴", callback_data='a'), InlineKeyboardButton(text="     ", callback_data='a'),
-     InlineKeyboardButton(text="🟢", callback_data='a'),
-     InlineKeyboardButton(text="     ", callback_data='a'), InlineKeyboardButton(text="🔴", callback_data='a')],
-
-    [InlineKeyboardButton(text="     ", callback_data='a'), InlineKeyboardButton(text="⬜", callback_data='a'),
-     InlineKeyboardButton(text="     ", callback_data='a'),
-     InlineKeyboardButton(text="⬜", callback_data='a'), InlineKeyboardButton(text="     ", callback_data='a')],
-
-    [InlineKeyboardButton(text="⬜", callback_data='a'), InlineKeyboardButton(text="     ", callback_data='a'),
-     InlineKeyboardButton(text="⬜", callback_data='a'),
-     InlineKeyboardButton(text="     ", callback_data='a'), InlineKeyboardButton(text="⬜", callback_data='a')],
-
-    [InlineKeyboardButton(text="     ", callback_data='a'), InlineKeyboardButton(text="⬜", callback_data='a'),
-     InlineKeyboardButton(text="     ", callback_data='a'),
-     InlineKeyboardButton(text="⬜", callback_data='a'), InlineKeyboardButton(text="     ", callback_data='a')],
-
-    [InlineKeyboardButton(text="↖", callback_data='a'), InlineKeyboardButton(text="↗", callback_data='a'),],
-     [InlineKeyboardButton(text="↙", callback_data='a'), InlineKeyboardButton(text="↘", callback_data='a'),],
-    [InlineKeyboardButton(text="Finish ❌", callback_data='a'),],
-
-]
-)
-
-kb = InlineKeyboardMarkup(inline_keyboard=[
-    # '🔴🟢'
-
-    [InlineKeyboardButton(text="🔴", callback_data='a'), InlineKeyboardButton(text="     ", callback_data='a'),
-     InlineKeyboardButton(text="🟢", callback_data='a'),
-     InlineKeyboardButton(text="     ", callback_data='a'), InlineKeyboardButton(text="🔴", callback_data='a')],
-
-    [InlineKeyboardButton(text="     ", callback_data='a'), InlineKeyboardButton(text="↙", callback_data='a'),
-     InlineKeyboardButton(text="     ", callback_data='a'),
-     InlineKeyboardButton(text="↘", callback_data='a'), InlineKeyboardButton(text="     ", callback_data='a')],
-
-    [InlineKeyboardButton(text="⬜", callback_data='a'), InlineKeyboardButton(text="     ", callback_data='a'),
-     InlineKeyboardButton(text="⬜", callback_data='a'),
-     InlineKeyboardButton(text="     ", callback_data='a'), InlineKeyboardButton(text="⬜", callback_data='a')],
-
-    [InlineKeyboardButton(text="     ", callback_data='a'), InlineKeyboardButton(text="⬜", callback_data='a'),
-     InlineKeyboardButton(text="     ", callback_data='a'),
-     InlineKeyboardButton(text="⬜", callback_data='a'), InlineKeyboardButton(text="     ", callback_data='a')],
-
-    [InlineKeyboardButton(text="Finish ❌", callback_data='a'),],
-
-]
-)
-
 import numpy as np
-CHESSBOARD = np.array([
-    [1, 0, 1, 0, 1],
-    [0, 1, 0, 1, 0],
-    [1, 0, 1, 0, 1],
-    [0, 1, 0, 1, 0],
-])
+arr = np.zeros((4, 5), dtype=int)
+
+# Making a chessboard for out game
+CHESSBOARD = np.zeros((4, 5), dtype=int)
+CHESSBOARD[::2, ::2] = 1
+CHESSBOARD[1::2, 1::2] = 1
+print("CURRENT BOARD:\n", CHESSBOARD)
+# Calculate squares on which we can move
+AVAILABLE_SQUARES = np.count_nonzero(CHESSBOARD)
+# print(arr)
+# CHESSBOARD = np.array([
+#     [1, 0, 1, 0, 1],
+#     [0, 1, 0, 1, 0],
+#     [1, 0, 1, 0, 1],
+#     [0, 1, 0, 1, 0],
+# ])
 CHESSBOARD[0, 0] = 10
 CHESSBOARD[0, 2] = 100
 CHESSBOARD[0, 4] = 10

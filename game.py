@@ -51,19 +51,19 @@ def get_start_pieces_pos(start_row, end_row, size) -> list:
 
 
 def build_empty_board(size, board_type='numeric') -> np.array:
-    """ Create empty desc to start the game. """
+    """
+    Create empty desc to start the game. We can get either numeric numpy
+    array (for calculation, processing) or emoji array (for displaying it
+    during the console game).
+    """
     if board_type == 'numeric':
         white_square = 0
         black_square = 1
         dtype = int
-        # black_piece = 5
-        # white_piece = -5
     elif board_type == 'emoji':
         white_square = square_types[0]
         black_square = square_types[1]
         dtype = str
-        # black_piece = square_types[5]
-        # white_piece = square_types[-5]
     else:
         raise ValueError('Incorrect type of board')
 
@@ -74,6 +74,8 @@ def build_empty_board(size, board_type='numeric') -> np.array:
 
 
 def set_up_board(board, size) -> np.array:
+    """ Function to set up the empty board"""
+
     first_player_pieces = get_start_pieces_pos(start_row=0, end_row=int(-1 * size / 3 // 1 * -1), size=size)  # Round up
     # Note: 1 player occupies at least 1/3 of the board (2/6, 3/8, e.t.c)
     second_player_pieces = get_start_pieces_pos(start_row=int(2 * size / 3), end_row=size, size=size)
@@ -127,6 +129,8 @@ def choose_best_move(board, moves_list) -> tuple[tuple[int, int], tuple[int, int
     """
 
     # place for future code...
+    indexes: tuple[np.array] = np.where(board == board)
+    list(zip(indexes[0], indexes[1]))
     board = (lambda x: x)(board)  # Do something like we're really choosing carefully
     piece, move = random.choice(moves_list)
     return piece, move
@@ -333,7 +337,7 @@ class Game:
             return False
 
         piece = input("Enter the coordinates of the piece you want to move (row, col): \n"
-                      "Input 'END' to finish the game.")
+                      "Input 'END' to finish the game.\n")
 
         if piece.upper() == 'END':
             print("YOU LOST THE GAME")
@@ -437,7 +441,7 @@ def play(game):
 if __name__ == "__main__":
     # game = Game(size=4, board_type='emoji')
     # print(game.get_current_board())
-    game = Game(size=6, board_type='emoji')
+    game = Game(size=8, board_type='emoji')
     play(game=game)
     # print(game.get_current_board())
     # game = Game(size=8, board_type='emoji')
@@ -445,7 +449,6 @@ if __name__ == "__main__":
     # game = Game(size=10, board_type='emoji')
     # print(game.get_current_board())
     # game = Game(size=6, board_type='numeric')
-
 
 
 
