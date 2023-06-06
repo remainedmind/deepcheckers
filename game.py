@@ -86,6 +86,14 @@ def set_up_board(board, size) -> np.array:
                 board[i][j] = 5
             elif (i, j) in second_player_pieces:
                 board[i][j] = -5
+
+        # for i in range(len(board)):
+        #     for j in range(len(board[i])):
+        #         if (i, j) in first_player_pieces:
+        #             board[i][j] = 5
+        #         elif (i, j) in second_player_pieces:
+        #             board[i][j] = -5
+
     return board
 
 
@@ -130,7 +138,7 @@ def choose_best_move(board, moves_list) -> tuple[tuple[int, int], tuple[int, int
 
     # place for future code...
     indexes: tuple[np.array] = np.where(board == board)
-    list(zip(indexes[0], indexes[1]))
+    # list(zip(indexes[0], indexes[1]))
     board = (lambda x: x)(board)  # Do something like we're really choosing carefully
     piece, move = random.choice(moves_list)
     return piece, move
@@ -140,52 +148,41 @@ def choose_best_move(board, moves_list) -> tuple[tuple[int, int], tuple[int, int
 
 
 class Game:
-    def __init__(self, size=6, board_type='emoji'):
+    def __init__(self, size=6, board_type='numeric'):
         """
         Initializing starts the game from scratch, defining the size and
         players pieces
          """
         self.size = size
-        self.board_type = board_type
+        self.board_type = board_type  # Type of output
 
         board = build_empty_board(size=size, board_type='numeric')
         self.board = set_up_board(board, size)
-        # Set up the pieces for the start:
-        # self.human_pieces = get_start_pieces_pos(start_row=0, end_row=int(-1 * size / 3 // 1 * -1), size=size)
-        # Note: 1 player occupies 1/3 of the board.
-        # self.computer_pieces = get_start_pieces_pos(start_row=int(2 * size / 3), end_row=size, size=size)
         self.picked_by_human = None
         self.picked_by_pc = None
 
 
-    def pick_piece(self, player: str, piece: tuple[int, int]):
-        """
-        Actually only human needs picking, not a computer.
-        However, to make game more handy, we will show, which piece if
-        picked by PC
-        """
-        if player == 'human':
-            if piece in self.human_pieces:
-                self.picked_by_human = piece
-                return
-        elif player == 'pc':
-            if piece in self.computer_pieces:
-                self.picked_by_pc = piece
-                return
-        raise ValueError('Wrong piece attributes or wrong player type! ')
+    # def pick_piece(self, player: str, piece: tuple[int, int]):
+    #     """
+    #     Actually only human needs picking, not a computer.
+    #     However, to make game more handy, we will show, which piece is
+    #     picked by PC
+    #     """
+    #     if player == 'human':
+    #         if piece in self.human_pieces:
+    #             self.picked_by_human = piece
+    #             return
+    #     elif player == 'pc':
+    #         if piece in self.computer_pieces:
+    #             self.picked_by_pc = piece
+    #             return
+    #     raise ValueError('Wrong piece attributes or wrong player type! ')
 
 
     def get_current_board(self):
         board_type = self.board_type
         if board_type == 'numeric':
             board = self.board
-
-            if self.picked_by_human:
-                board[self.picked_by_human] = 50
-            elif self.picked_by_pc:
-                board[self.picked_by_pc] = -50
-
-
         elif board_type == 'emoji':
             board = build_empty_board(self.size, board_type='emoji')
 
@@ -226,7 +223,8 @@ class Game:
                     yield move
 
 
-    def get_captures_list(self, piece: tuple[int, int], player_pointer = 1) -> list[tuple]:
+    def get_captures_list(self, piece: tuple[int, int], player_pointer = 1
+        ) -> list[tuple]:
         """
         Generator function to get all ways to capture. If any (for any piece), player
         if obliged to make it instead of simple move, so we check them all.
@@ -240,9 +238,9 @@ class Game:
         )
         for take in hypothetical_takes:
             # We can't check all condition at once
+
             if (0 <= take[0] < bound) and (
                     0 <= take[1] < bound):
-                # print(len(self.size))
                 if self.board[take] == 1 and (
                     self.board[
                         (
@@ -250,17 +248,25 @@ class Game:
                         )
                     ] in (- 5 * player_pointer, - 25 * player_pointer)
                 ):
+                    print('TAKES', take, piece, (
+                        int((take[0] + piece[0]) / 2), int((take[1] + piece[1]) / 2)
+                    ),
+                          self.board[
+                              (
+                                  int((take[0] + piece[0]) / 2), int((take[1] + piece[1]) / 2)
+                              )
+                          ]
+                          )
                     yield take
 
 
 
-    def make_pc_move(self, attempts=1) -> None:
+    def make_pc_move(self) -> None:
         """
         Function to move as a System player. Picks one piece and moves it.
         Firstly, we check all possible ways to capture the opponent. For
          all pieces. That's because of in case we can capture, we must do so.
          If no captures, we get all other moves, then select one.
-        :argument attempts -  It's a marker of that PC is losing game. Read below
 
         """
         print(self.get_current_board())
@@ -358,38 +364,34 @@ class Game:
 
         # Firstly, we check if player had to beat enemy piece somewhere.
         # In that case it's not allowed to make other moves
-
-        takes =  get_moves(piece=piece, step=2)
-
-        takes = [
-            take for take in takes if (
-                0 <= take[0] < bound  # We can't check all condition in one "all"
-                ) and (
-                0 <= take[1] < bound
-                ) and all(
-                    (
-                        self.board[
-                            (
-                                int((take[0] + piece[0]) / 2), int((take[1] + piece[1]) / 2)
-                            )
-                        ] in (-5, -25),
-                        self.board[take] == 1,
-                    )
-                )
+        takes: list[tuple[tuple[int, int]]] = []  # Tuples of start and end position
+        [
+            [takes.append(x) for x in self.get_captures_list(
+            piece, player_pointer=1
+        )] for piece in all_pieces
         ]
-        # print("WAYS TO TAKE: ", takes)
 
         # If it's no way to take, just check other moves
         if not takes:
-            # hypothetical_moves = [
-            #     (piece[0] + 1, piece[1] - 1), (piece[0] + 1, piece[1] + 1)
-            # ]
+
 
             # If piece is king, we can move it to both top and bottom
-            simple_moves = get_moves(piece=piece, step=1, backward=(piece in kings))
+            # simple_moves = get_moves(piece=piece, step=1, backward=(piece in kings))
 
-        moves = takes or simple_moves  # Takes have a priority
+            moves: list[tuple[tuple[int, int], tuple[int, int]]] = []  # Tuples of start and end position
+
+            [
+                moves.append(x) for x in self.get_moves_list(
+                    piece, player_pointer=1, is_king=(piece in kings))
+            ]
+            print(moves)
+
+
+
+        # moves = takes or simple_moves  # Takes have a priority
+        moves = takes or moves  # Takes have a priority
         if moves:
+            print(moves)
             self.picked_by_human = piece
             print(self.get_current_board())
             move = input("Enter the coordinates of the square you want to move to (row, col): ")
@@ -400,24 +402,16 @@ class Game:
                 assert move in moves, ValueError
             except (AssertionError, ValueError):
                 print('You did wrong input. Try again! ')
-                print(self.get_current_board())
                 return self.make_human_move()
-
-            # self.board[piece] = 1
-            # self.board[move] = (25 if move[0] + 1 == bound else 5)
 
             # If piece reaches the board, we make it a King.
             # Otherwise, no changes
             self.board[move] = (25 if move[0] + 1 == bound else self.board[piece])
             self.board[piece] = 1
 
-            # self.human_pieces.remove(piece)
-            # self.human_pieces.append(move)
             if move in takes:
                 enemy_piece = tuple(map(lambda x: int(x / 2), [(move[0] + piece[0]), (move[1] + piece[1])]))
-                # self.computer_pieces.remove(
-                #     enemy_piece
-                # )
+
                 self.board[enemy_piece] = 1
         else:
             print("NO WAY TO MOVE THIS PIECE! Try again! ")
@@ -432,7 +426,9 @@ def play(game):
     :arg game: instance of Game
     """
     if game.make_human_move():
+        print(game.board)
         if game.make_pc_move():
+            print(game.board)
             return play(game)  # Continue the game
     return print("THE END OF THE GAME")
 
@@ -441,7 +437,7 @@ def play(game):
 if __name__ == "__main__":
     # game = Game(size=4, board_type='emoji')
     # print(game.get_current_board())
-    game = Game(size=8, board_type='emoji')
+    game = Game(size=6, board_type='emoji')
     play(game=game)
     # print(game.get_current_board())
     # game = Game(size=8, board_type='emoji')
