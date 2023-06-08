@@ -1,5 +1,6 @@
 from itertools import product
 import numpy as np
+import pandas as pd
 from tabulate import tabulate
 import random
 from time import sleep
@@ -157,8 +158,11 @@ class Game:
         board = build_empty_board(size=size, board_type='numeric')
         self.board = set_up_board(board, size)
         self.train_data = np.array(
-            [self.board[np.nonzero(self.board)]]
+            [
+            [*self.board[np.nonzero(self.board)], *((0,) * 4)],
+            ]
         )
+        print(self.train_data)
         # self.picked_by_human = None
         # self.picked_by_pc = None
 
@@ -168,6 +172,73 @@ class Game:
         # self.first_player = self.HumanPlayer(side=1, game=self)
         self.first_player = self.ComputerPlayer(game=self, side=1)
         self.second_player = self.ComputerPlayer(game=self, side=-1)
+
+    def calculate_score(self, board_before: np.array, board_after: np.array, side: int = 1) ->tuple[int, int]:
+        """
+        Function to calculate player scores after his move.
+        The better the move, the higher the score.
+
+        :param board_before:
+        :param board_after:
+        :param side:
+        :return:
+        """
+        # print(board_before - board_after)
+        return (np.sum(board_after - board_before) * side, np.sum(board_after - board_before) * (-side))[::side]
+
+
+
+
+    def put_to_dataset(self, move_result: np.array, player_pointer: int = 1) -> None:
+        """
+        Function to put the move information and result into the dataset.
+        We add the current board status, the chosen move and result of
+        this move (scores). We also add the pointer that shows which player
+        made the move.
+        """
+        data = self.train_data
+        board = self.board
+        # print(board - move_result)
+        scores = self.calculate_score(
+            board_before = board,
+            board_after = move_result,
+            side=player_pointer,
+        )
+        print("SCORES: {}; {}".format(*scores))
+
+        # We record, which player made the move
+        whose_move = tuple(map(lambda x: max(x * player_pointer, 0), (1, -1)))
+
+        # Finally, we add: 1) matrix description; 2) move priority; 3) scores
+        one_round_data = (
+            np.append(
+                board[np.nonzero(board)],
+                values = [*whose_move, *scores])
+        )
+
+        self.train_data = np.insert(
+            data,
+            obj=len(data),  # Put into the end of array
+            values=one_round_data,
+            axis=0
+        )
+
+        # self.train_data = np.insert(
+        #     data,
+        #     obj=len(data), # Put into the end of array
+        #     values=[*board[np.nonzero(board)], score[0], score[1]],
+        #     axis=0)
+
+
+    def update_board(self, new_board: np.array, collect_data: bool = True, player_pointer: int = 1) -> None:
+        """
+        Function to update the game board (by replacing it with new one),
+        and, if needed, to collect data for training
+        """
+        if collect_data:
+            self.put_to_dataset(move_result=new_board, player_pointer=player_pointer)
+        self.board = new_board
+
 
     class HumanPlayer():
         def __init__(self, game, side=1):
@@ -293,11 +364,15 @@ class Game:
 
             """
 
-            print(self.game.get_current_board())
-            sleep(0.01)
-
-            pieces: list = get_pieces_indexes(board=self.game.board, rank=self.player_pointer * 5)
-            kings: list = get_pieces_indexes(board=self.game.board, rank=self.player_pointer * 25)
+            # print(self.game.get_current_board())
+            # sleep(0.01)
+            board = np.copy(self.game.board)  # We need copy to compare the result
+            pieces: list = get_pieces_indexes(
+                board=board, rank=self.player_pointer * 5
+            )
+            kings: list = get_pieces_indexes(
+                board=board, rank=self.player_pointer * 25
+            )
             all_pieces = [*pieces, *kings]
 
             if not all_pieces:  # Empty
@@ -322,20 +397,20 @@ class Game:
             # Finally, our move must be one of these
             moves = takes or moves  # takes have priority
             if moves:
-                piece, move = choose_best_move(board=self.game.board, moves_list=moves)
+                piece, move = choose_best_move(board=board, moves_list=moves)
             else:
                 print("SKYNET LOST THE GAME. YOU'VE STOPPED THE MACHINE APOCALYPSE")
                 return False
 
             self.picked = piece
-            # move = random.choice(moves)
+
             print(self.game.get_current_board())
             sleep(0.01)
 
             # Calvulate the index of bound. Here piece becomes the King
             bound =(self.game.size - 1) * (1 + self.player_pointer)  / 2
-            self.game.board[move] = (25 * self.player_pointer if move[0] == bound else self.game.board[piece])
-            self.game.board[piece] = 1
+            board[move] = (25 * self.player_pointer if move[0] == bound else board[piece])
+            board[piece] = 1
 
             if takes:  # If we captured some piece, we have to delete it
                 opponent_piece = tuple(
@@ -345,12 +420,23 @@ class Game:
                         ]
                     )
                 )
-                self.game.board[opponent_piece] = 1
+                board[opponent_piece] = 1
 
-            self.game.train_data = np.append(
-                self.game.train_data,
-                [self.game.board[np.nonzero(self.game.board)]]
-            )
+            # self.game.train_data = np.append(
+            #     self.game.train_data,
+            #     [self.game.board[np.nonzero(self.game.board)]]
+            # )
+            # print(self.game.board[np.nonzero(self.game.board)])
+
+            # self.game.train_data = np.insert(
+            #     self.game.train_data,
+            #     obj=len(self.game.train_data),
+            #     values=[*self.game.board[np.nonzero(self.game.board)], 0],
+            #     axis=0)
+
+            # self.game.put_to_dataset()
+            self.game.update_board(new_board=board, player_pointer=self.player_pointer)
+
 
             return True
 
@@ -451,10 +537,10 @@ class Game:
         self.show_board()
         print(
             "RESULT: \n",
-            self.board,
-            self.board.ravel(),
+            # self.board,
+            # self.board.ravel(),
             # self.board[np.nonzero(self.board)],
-            self.train_data, sep='\n\n')
+            pd.DataFrame(self.train_data), sep='\n\n')
         return print("THE END OF THE GAME")
 
 
@@ -465,6 +551,7 @@ if __name__ == "__main__":
     # print(game.get_current_board())
     game = Game(size=6, output='emoji')
     # play(game=game)
+    # print( game.train_data)
     game.play()
     # print(game.get_current_board())
     # game = Game(size=8, board_type='emoji')
