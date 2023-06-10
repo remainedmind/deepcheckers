@@ -1,6 +1,7 @@
 import numpy as np
 import tensorflow as tf
 from game import Game
+from copy import copy
 import os
 
 def load_weights(policy_model, value_model, load_path):
@@ -11,8 +12,9 @@ def load_weights(policy_model, value_model, load_path):
 # Define the Policy Network
 def policy_network(input_shape, output_shape):
     model = tf.keras.Sequential([
-        tf.keras.layers.Dense(64, (8, 8), activation='relu', input_shape=input_shape),
-        tf.keras.layers.Flatten(),
+        tf.keras.layers.Flatten(input_shape=input_shape),
+        tf.keras.layers.Dense(64, activation='relu'),
+        # tf.keras.layers.Flatten(),
         tf.keras.layers.Dense(64, activation='relu'),
         tf.keras.layers.Dense(output_shape, activation='softmax')
     ])
@@ -56,7 +58,10 @@ def calculate_reward(old_game_state, new_game_state):
 # Define a function for reinforcement training
 def train_model(policy_model, value_model, game_states, rewards, learning_rate):
     # Reshape the game states to match the input shape of the policy and value networks
-    input_states = np.reshape(game_states, (game_states.shape[0],) + game_states.shape)
+    # game_states = np.array(game_states)
+    # input_states = np.reshape(game_states, (game_states.shape[0],) + game_states.shape)
+    print(game_states[0], type(game_states[0]))
+    # return
     # Calculate the predicted values and gradients of the value network
     with tf.GradientTape() as tape:
         predicted_values = value_model(input_states)
@@ -76,45 +81,6 @@ def train_model(policy_model, value_model, game_states, rewards, learning_rate):
     policy_optimizer.apply_gradients(zip(policy_gradients, policy_model.trainable_variables))
 
 
-# Define a function to perform the training process
-def train_process(game_states, learning_rate, num_episodes, batch_size, save_path):
-    # Define the input and output shapes of the networks
-    input_shape = (8, 8, 3)
-    output_shape = 64 * 64
-    # Initialize the policy and value networks
-    policy_model = policy_network(input_shape, output_shape)
-    value_model = value_network(input_shape)
-    load_weights(policy_model, value_model, save_path)
-    # Loop over the episodes
-    for episode in range(num_episodes):
-        # Initialize the game state and reward arrays for this episode
-        game_states = np.zeros((batch_size,) + input_shape)
-        rewards = np.zeros(batch_size)
-        # Loop over the games in this batch
-        for game_index in range(batch_size):
-            # Initialize the game state
-            game_state = np.zeros(input_shape)
-            # Loop over the turns in the game
-            for _ in range(50):
-                # Predict the move and update the game state
-                move = predict_move(policy_model, game_state)
-                old_game_state = np.copy(game_state)
-                game_state = make_move(game_state, move)
-                # Calculate the reward and update the reward array
-                reward = calculate_reward(old_game_state, game_state)
-                rewards[game_index] += reward
-                # If the game is over, break out of the loop
-                if is_game_over(game_state):
-                    break
-            # Update the game state array with the final game state
-            game_states[game_index] = game_state
-        # Train the policy and value networks using the game states and rewards
-        train_model(policy_model, value_model, game_states, rewards, learning_rate)
-    # Save the weights of the trained networks
-    policy_model.save_weights(save_path + '/policy_weights')
-    value_model.save_weights(save_path + '/value_weights')
-
-
 
 def calculate_score(board_before: np.array, board_after: np.array, side: int = 1) ->tuple[int, int]:
     """
@@ -130,24 +96,33 @@ def calculate_score(board_before: np.array, board_after: np.array, side: int = 1
     """
     # print(board_before - board_after)
     # print(one_hot_encode_matrix(board_before))
-    number_of_pieces = board_after[board_after == 5 * side] -
-    return (np.sum(board_after - board_before) * side, np.sum(board_after - board_before) * (-side))[::side]
+    piece = 5 * side
+    king = 25 * side
+    reward = np.sum(board_after == piece) - np.sum(board_before == piece)
+    reward += np.sum(board_after == king) - np.sum(board_before == king) * 2  # Kings are more important
+    return reward
 
 
-def train_on_on_game(board_history: list[np.array], learning_rate, num_episodes, batch_size, save_path, winner=1):
+def train_on_one_game(board_history: list[np.array], learning_rate, save_path='', winner=1):
     """
     Function to train model on one game. For each game, we have
-    some board states and exactly one winner (or draw)
+    some board states and exactly one winner (or draw). So, one game is one butch
     """
     # Define the input and output shapes of the networks
-    input_shape = (8, 8, 3)
+    # input_shape = (8, 8, 3)
+    input_shape = (8, 8, 1)
     output_shape = 64 * 64
     # Initialize the policy and value networks
     policy_model = policy_network(input_shape, output_shape)
     value_model = value_network(input_shape)
-    load_weights(policy_model, value_model, save_path)
+    try:
+        load_weights(policy_model, value_model, save_path)
+    except:
+        pass
 
     player = 1  # Player pointer (first or second)
+    game_states = copy(board_history)
+    rewards = []
     # Loop over the game's steps
     while board_history:
         # Move from end to begining
@@ -163,43 +138,21 @@ def train_on_on_game(board_history: list[np.array], learning_rate, num_episodes,
             board_after=board_after,
             side=player
         )
+        rewards.append(reward)
         player *= -1  # Reverse
 
-    for board in board_history:
-        # Initialize the game state and reward arrays for this episode
-        game_states = np.zeros((batch_size,) + input_shape)
-        rewards = np.zeros(batch_size)
-        # Loop over the games in this batch
-        for game_index in range(batch_size):
-            # Initialize the game state
-            game_state = np.zeros(input_shape)
-            # Loop over the turns in the game
-            for _ in range(50):
-                # Predict the move and update the game state
-                move = predict_move(policy_model, game_state)
-                old_game_state = np.copy(game_state)
-                game_state = make_move(game_state, move)
-                # Calculate the reward and update the reward array
-                reward = calculate_reward(old_game_state, game_state)
-                rewards[game_index] += reward
-                # If the game is over, break out of the loop
-                if is_game_over(game_state):
-                    break
-            # Update the game state array with the final game state
-            game_states[game_index] = game_state
-        # Train the policy and value networks using the game states and rewards
-        train_model(policy_model, value_model, game_states, rewards, learning_rate)
+    # Train the policy and value networks using the game states and rewards
+    train_model(policy_model, value_model, game_states, rewards, learning_rate)
     # Save the weights of the trained networks
     policy_model.save_weights(save_path + '/policy_weights')
     value_model.save_weights(save_path + '/value_weights')
 
 
 if __name__ == "__main__":
-    # game = Game(size=4, board_type='emoji')
-    # print(game.get_current_board())
-    game = Game(size=8, output='emoji')
-    # play(game=game)
-    # print( game.train_data)
-    game.play()
-
-    train_process(1, 0.1, batch_size=3, num_episodes=10, save_path='')
+    for _ in range(3):
+        game = Game(size=8, output='emoji')
+        train_batch = game.play()
+        #
+        # train_process(train_batch, 0.01, batch_size=3, num_episodes=10, save_path='')
+        train_on_one_game(board_history=train_batch, learning_rate=0.001, save_path=os.getcwd() + "/weights/")
+        print("Weights are updated.")

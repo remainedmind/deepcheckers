@@ -120,8 +120,8 @@ def one_hot_encode_matrix(matrix: np.array) -> tuple[np.array, np.array, np.arra
     second_player_matrix = np.zeros_like(matrix)
     second_player_matrix[matrix == WHITE_PIECE] = 1
     second_player_matrix[matrix == WHITE_KING] = 2
-
-    return ones_matrix, first_player_matrix, second_player_matrix
+    return np.stack((ones_matrix, first_player_matrix, second_player_matrix), axis=2)
+    # return ones_matrix, first_player_matrix, second_player_matrix
 
 
 def get_pieces_indexes(board, rank) -> list[tuple]:
@@ -190,17 +190,14 @@ class Game:
 
         board = build_empty_board(size=size, board_type='numeric')
         self.board = set_up_board(board, size)
-        self.train_data = np.array(
-            [
-            [*self.board[np.nonzero(self.board)], *((0,) * 4)],
-            ]
-        )
-        print(self.train_data)
-        # self.picked_by_human = None
-        # self.picked_by_pc = None
+        # self.train_data = np.array(
+        #     [
+        #     [*self.board[np.nonzero(self.board)], *((0,) * 4)],
+        #     ]
+        # )
 
-        # self.picked_by_first = None
-        # self.picked_by_second = None
+        # self.train_data = [self.board]
+        self.train_data = [(one_hot_encode_matrix(self.board))]
 
         # self.first_player = self.HumanPlayer(side=1, game=self)
         self.first_player = self.ComputerPlayer(game=self, side=1)
@@ -218,10 +215,6 @@ class Game:
         :param side:
         :return:
         """
-        # print(board_before - board_after)
-        # print(one_hot_encode_matrix(board_before))
-        number_of_pieces = board_after[board_after == 5]
-        print("HERE\n", number_of_pieces, np.sum(board_after == 5) - np.sum(board_before == 5))
         return (np.sum(board_after - board_before) * side, np.sum(board_after - board_before) * (-side))[::side]
 
 
@@ -234,7 +227,16 @@ class Game:
         this move (scores). We also add the pointer that shows which player
         made the move.
         """
+
+
+        self.train_data.append(one_hot_encode_matrix(move_result))
+        # self.train_data.append(move_result)
+
+
+        return
+
         data = self.train_data
+
         board = self.board
         # print(board - move_result)
         scores = self.calculate_score(
@@ -242,8 +244,6 @@ class Game:
             board_after = move_result,
             side=player_pointer,
         )
-        print("SCORES: {}; {}".format(*scores))
-
         # We record, which player made the move
         whose_move = tuple(map(lambda x: max(x * player_pointer, 0), (1, -1)))
 
@@ -260,12 +260,6 @@ class Game:
             values=one_round_data,
             axis=0
         )
-
-        # self.train_data = np.insert(
-        #     data,
-        #     obj=len(data), # Put into the end of array
-        #     values=[*board[np.nonzero(board)], score[0], score[1]],
-        #     axis=0)
 
 
     def update_board(self, new_board: np.array, collect_data: bool = True, player_pointer: int = 1) -> None:
@@ -405,12 +399,7 @@ class Game:
             # print(self.game.get_current_board())
             # sleep(0.01)
             board = np.copy(self.game.board)  # We need copy to compare the result
-            # pieces: list = get_pieces_indexes(
-            #     board=board, rank=self.player_pointer * 5
-            # )
-            # kings: list = get_pieces_indexes(
-            #     board=board, rank=self.player_pointer * 25
-            # )
+
             pieces: list = get_pieces_indexes(
                 board=board, rank=self.player_pointer * 5
             )
@@ -448,7 +437,7 @@ class Game:
 
             self.picked = piece
 
-            print(self.game.get_current_board())
+            # print(self.game.get_current_board())
             # sleep(0.01)
 
             # Calvulate the index of bound. Here piece becomes the King
@@ -523,6 +512,7 @@ class Game:
 
 
     def show_board(self):
+        return
         print(self.get_current_board())
 
     def get_moves_list(self, piece: tuple[int, int], player_pointer = 1, is_king: bool =False) -> list[tuple]:
@@ -575,16 +565,19 @@ class Game:
     def play(self):
         # self.show_board()
         if self.first_player.make_move():
+            self.winner = 1
             # self.show_board()
             if self.second_player.make_move():
+                self.winner = 0
                 return self.play()
         self.show_board()
+        return self.train_data, self.winner
+
         print(
             "RESULT: \n",
-            # self.board,
-            # self.board.ravel(),
-            # self.board[np.nonzero(self.board)],
-            pd.DataFrame(self.train_data), sep='\n\n')
+            self.train_data,
+            # pd.DataFrame(self.train_data),
+            sep='\n\n')
         return print("THE END OF THE GAME")
 
 
