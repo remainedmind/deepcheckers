@@ -3,15 +3,22 @@ import numpy as np
 import pandas as pd
 from tabulate import tabulate
 import random
+# from nn_training import train_process
 from time import sleep
 
+WHITE_SQUARE, BLACK_SQUARE, BLACK_PIECE = 0, 1, 5
+WHITE_PIECE, BLACK_KING, WHITE_KING = -5, 25, -25
+
+
 square_types = {
-    0: '🟨',  # White square
-    1: '⬛',  # Black square,
-    5: '🟤',  # Black piece
-    -5: '⚪',
-    25: '🔴',  # Black King
-    -25: '⭕',  # White King
+    WHITE_SQUARE: '🟨',  # White square
+    BLACK_SQUARE: '⬛',  # Black square,
+    BLACK_PIECE: '🟤',  # Black piece
+    WHITE_PIECE: '⚪',
+    # -3: '⚪',
+    BLACK_KING: '🔴',  # Black King
+    WHITE_KING: '⭕',  # White King
+    # -23: '⭕',  # White King
     50: '🔵',  # Active Black
     -50: '🟢'  # Active White
 }
@@ -75,7 +82,9 @@ def build_empty_board(size, board_type='numeric') -> np.array:
 
 
 def set_up_board(board, size) -> np.array:
-    """ Function to set up the empty board"""
+    """
+    Function to set up the empty board. Black squares (available to
+    move to) will be represented as 1. First player piece """
 
     first_player_pieces = get_start_pieces_pos(start_row=0, end_row=int(-1 * size / 3 // 1 * -1), size=size)  # Round up
     # Note: 1 player occupies at least 1/3 of the board (2/6, 3/8, e.t.c)
@@ -89,6 +98,30 @@ def set_up_board(board, size) -> np.array:
                 board[i][j] = -5
 
     return board
+
+
+def one_hot_encode_matrix(matrix: np.array) -> tuple[np.array, np.array, np.array]:
+    """
+    Function to make one hot representation of matrix, by splitting it into several ones.
+
+    """
+    ones_matrix = np.zeros_like(matrix)
+    ones_matrix[matrix == BLACK_SQUARE] = 1
+
+    # create the second matrix
+    first_player_matrix = np.zeros_like(matrix)
+    first_player_matrix[matrix == BLACK_PIECE] = 1
+
+    # As king piece is better that simple piece, why don't we just say it's
+    # two times better?
+    first_player_matrix[matrix == BLACK_KING] = 2
+
+    # create the third matrix
+    second_player_matrix = np.zeros_like(matrix)
+    second_player_matrix[matrix == WHITE_PIECE] = 1
+    second_player_matrix[matrix == WHITE_KING] = 2
+
+    return ones_matrix, first_player_matrix, second_player_matrix
 
 
 def get_pieces_indexes(board, rank) -> list[tuple]:
@@ -177,6 +210,8 @@ class Game:
         """
         Function to calculate player scores after his move.
         The better the move, the higher the score.
+        We actually have to work only with scores player gets after HIS move,
+        so for game of X rounds we will have X train records, not 2X.
 
         :param board_before:
         :param board_after:
@@ -184,6 +219,9 @@ class Game:
         :return:
         """
         # print(board_before - board_after)
+        # print(one_hot_encode_matrix(board_before))
+        number_of_pieces = board_after[board_after == 5]
+        print("HERE\n", number_of_pieces, np.sum(board_after == 5) - np.sum(board_before == 5))
         return (np.sum(board_after - board_before) * side, np.sum(board_after - board_before) * (-side))[::side]
 
 
@@ -367,6 +405,12 @@ class Game:
             # print(self.game.get_current_board())
             # sleep(0.01)
             board = np.copy(self.game.board)  # We need copy to compare the result
+            # pieces: list = get_pieces_indexes(
+            #     board=board, rank=self.player_pointer * 5
+            # )
+            # kings: list = get_pieces_indexes(
+            #     board=board, rank=self.player_pointer * 25
+            # )
             pieces: list = get_pieces_indexes(
                 board=board, rank=self.player_pointer * 5
             )
@@ -405,7 +449,7 @@ class Game:
             self.picked = piece
 
             print(self.game.get_current_board())
-            sleep(0.01)
+            # sleep(0.01)
 
             # Calvulate the index of bound. Here piece becomes the King
             bound =(self.game.size - 1) * (1 + self.player_pointer)  / 2
