@@ -1,3 +1,4 @@
+
 import numpy as np
 import keras
 from keras.layers import Dense, Input, Flatten, Dropout
@@ -6,6 +7,7 @@ from game import Game
 
 
 def get_model() -> keras.Model:
+    """ Building a model that predicts """
     input_layer = Input(shape=(8, 8, 3, ))
     flattened = Flatten()(input_layer)
     flattened = Dense(256, activation='relu')(flattened)
@@ -13,13 +15,15 @@ def get_model() -> keras.Model:
     output_layer = Dense(1, activation='sigmoid')(flattened)
     model = Model(inputs=input_layer, outputs=output_layer)
     model.compile(optimizer='adam', loss='binary_crossentropy')
-    print(model.summary())
+    # print(model.summary())
     return model
 
 
 def train_on_batch(model, x, y) -> keras.Model:
-    model.fit(x, y, batch_size=None, epochs=1, verbose=1)
+    """ Function to train model on data of one game"""
+    model.fit(x, y, batch_size=None, epochs=1, verbose=0)
     return model
+
 
 def get_prediction(model, x) -> np.array:
     return model.predict(x)
@@ -55,11 +59,11 @@ if __name__ == "__main__":
     # get_prediction(model=model, x=test_batch[4])
     after = get_prediction(model=model, x=test_batch)
     print(np.stack((before, after, after-before), axis=2))
+
     for i in test_batch[:3,]:
         # print(i.shape)
-        print('PROBA:  ', get_prediction(model=model, x=np.array((i,)))[0][0], end='__')
-        # print('PROBA:  ', get_prediction(model=model, x=np.array(i,))[0][0], end='__')
-        # print('PROBA:  ', get_prediction(model=model, x=(i,))[0][0], end='__')
+        print('PROBA:  ', get_prediction(model=model, x=np.array((i,)))[0][0], end='\n')
+
 
 
 

@@ -8,7 +8,7 @@ from time import sleep
 
 WHITE_SQUARE, BLACK_SQUARE, BLACK_PIECE = 0, 1, 5
 WHITE_PIECE, BLACK_KING, WHITE_KING = -5, 25, -25
-
+ACTIVE_BLACK, ACTIVE_WHITE = 50, -50
 
 square_types = {
     WHITE_SQUARE: '🟨',  # White square
@@ -19,8 +19,8 @@ square_types = {
     BLACK_KING: '🔴',  # Black King
     WHITE_KING: '⭕',  # White King
     # -23: '⭕',  # White King
-    50: '🔵',  # Active Black
-    -50: '🟢'  # Active White
+    ACTIVE_BLACK: '🔵',  # Active Black
+    ACTIVE_WHITE: '🟢'  # Active White
 }
 
 def get_start_pieces_pos(start_row, end_row, size) -> list:
@@ -589,7 +589,7 @@ if __name__ == "__main__":
     game = Game(size=6, output='emoji')
     # play(game=game)
     # print( game.train_data)
-    game.play()
+    print(game.play())
     # print(game.get_current_board())
     # game = Game(size=8, board_type='emoji')
     # print(game.get_current_board())
