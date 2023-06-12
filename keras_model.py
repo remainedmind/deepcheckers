@@ -29,6 +29,10 @@ def get_prediction(model, x) -> np.array:
     return model.predict(x)
 
 
+
+
+
+
 if __name__ == "__main__":
     model = get_model()
     game = Game(size=8, output='emoji')

@@ -6,6 +6,7 @@ import random
 # from nn_training import train_process
 from time import sleep
 
+
 WHITE_SQUARE, BLACK_SQUARE, BLACK_PIECE = 0, 1, 5
 WHITE_PIECE, BLACK_KING, WHITE_KING = -5, 25, -25
 ACTIVE_BLACK, ACTIVE_WHITE = 50, -50
@@ -22,6 +23,7 @@ square_types = {
     ACTIVE_BLACK: '🔵',  # Active Black
     ACTIVE_WHITE: '🟢'  # Active White
 }
+
 
 def get_start_pieces_pos(start_row, end_row, size) -> list:
     """
@@ -55,7 +57,6 @@ def get_start_pieces_pos(start_row, end_row, size) -> list:
         ] for index, row in enumerate(range(start_row, end_row))
     ]
     return result
-
 
 
 def build_empty_board(size, board_type='numeric') -> np.array:
@@ -120,8 +121,8 @@ def one_hot_encode_matrix(matrix: np.array) -> tuple[np.array, np.array, np.arra
     second_player_matrix = np.zeros_like(matrix)
     second_player_matrix[matrix == WHITE_PIECE] = 1
     second_player_matrix[matrix == WHITE_KING] = 2
-    return np.stack((ones_matrix, first_player_matrix, second_player_matrix), axis=2)
-    # return ones_matrix, first_player_matrix, second_player_matrix
+
+    return np.stack((ones_matrix, first_player_matrix, second_player_matrix), axis=0)  # shape is 3xSIZExSIZE
 
 
 def get_pieces_indexes(board, rank) -> list[tuple]:
@@ -132,8 +133,6 @@ def get_pieces_indexes(board, rank) -> list[tuple]:
     """
     indexes: tuple[np.array] = np.where(board == rank)
     return list(zip(indexes[0], indexes[1]))
-
-
 
 
 def get_moves(piece: tuple, step: int, backward=True) -> list[tuple]:
@@ -157,8 +156,6 @@ def get_moves(piece: tuple, step: int, backward=True) -> list[tuple]:
     ]
 
 
-
-
 def choose_best_move(board, moves_list) -> tuple[tuple[int, int], tuple[int, int]]:
     """
     Function to simulate move choosing by NN. Up for now it's just random
@@ -171,10 +168,6 @@ def choose_best_move(board, moves_list) -> tuple[tuple[int, int], tuple[int, int
     board = (lambda x: x)(board)  # Do something like we're really choosing carefully
     piece, move = random.choice(moves_list)
     return piece, move
-
-
-
-
 
 
 
@@ -202,6 +195,7 @@ class Game:
         # self.first_player = self.HumanPlayer(side=1, game=self)
         self.first_player = self.ComputerPlayer(game=self, side=1)
         self.second_player = self.ComputerPlayer(game=self, side=-1)
+
 
     def calculate_score(self, board_before: np.array, board_after: np.array, side: int = 1) ->tuple[int, int]:
         """
@@ -568,7 +562,7 @@ class Game:
             self.winner = 1
             # self.show_board()
             if self.second_player.make_move():
-                self.winner = 0
+                self.winner = -1
                 return self.play()
         self.show_board()
         return self.train_data, self.winner
@@ -589,7 +583,8 @@ if __name__ == "__main__":
     game = Game(size=6, output='emoji')
     # play(game=game)
     # print( game.train_data)
-    print(game.play())
+    game.play()
+    # print(game.play())
     # print(game.get_current_board())
     # game = Game(size=8, board_type='emoji')
     # print(game.get_current_board())

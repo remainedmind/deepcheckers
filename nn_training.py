@@ -98,6 +98,7 @@ def calculate_score(board_before: np.array, board_after: np.array, side: int = 1
     # print(one_hot_encode_matrix(board_before))
     piece = 5 * side
     king = 25 * side
+
     reward = np.sum(board_after == piece) - np.sum(board_before == piece)
     reward += np.sum(board_after == king) - np.sum(board_before == king) * 2  # Kings are more important
     return reward
