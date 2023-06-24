@@ -24,6 +24,7 @@ class CheckersModel(nn.Module):
         self.fc1 = nn.Linear(64 * 8 * 8, 128)
         self.fc2 = nn.Linear(3, 128)  # Additional layer for features
         self.fc3 = nn.Linear(256, 4)
+        self.rewards = np.array([])
 
     def forward(self, x, features):
         x = self.conv(x)
@@ -57,12 +58,29 @@ def calculate_reward(game_state: np.array, next_game_state: np.array, side: int=
     # to_do
     black_pieces_changes = next_game_state[1] - game_state[1]
     white_pieces_changes = next_game_state[2] - game_state[2]
-    print(np.sum(black_pieces_changes),  np.sum(white_pieces_changes))
+    print(
+        "MOVE RESULT:\n",
+        # (black_pieces_changes, white_pieces_changes)[min(side, 0)],
+        black_pieces_changes,
+        '\n-----------------------\n',
+        white_pieces_changes,
+        '\n\n'
+    )
+    score_changes = np.sum(black_pieces_changes),  np.sum(white_pieces_changes)
+    print(
+        "SIDE:\n", side,
+        "PLAYER REWARD: \n",
+        - score_changes[max(side, 0)], '\n',  # How much opposite player lost
+        score_changes[min(side, 0)],  # How much player earns
+          "\n")
+    return np.sum(black_pieces_changes),  np.sum(white_pieces_changes)
+    self.reward.append([])
+
     # print(
     #     (np.sum(black_pieces_changes), np.sum(white_pieces_changes)*(-side))[::side]
     # )
     # print(game_state[np.where(next_game_state[1:] - game_state[1:]) != 0])
-    print(next_game_state[1:] - game_state[1:])
+    # print(next_game_state[1:] - game_state[1:])
     # print(diff.shape, diff)
     # for
     return 1
@@ -77,12 +95,12 @@ def collect_second_layer(game_states: list[np.array], winner: int) -> np.array:
     """
     player_pointer = 1
     num_states = len(game_states)
-    second_layer_data = np.zeros((num_states, 3), dtype=np.int32)
+    second_layer_data = np.zeros((num_states, 4), dtype=np.int32)
 
     for i, state in enumerate(game_states[:-1]):
-        reward = calculate_reward(game_state=state, next_game_state=game_states[i+1], side=player_pointer)
+        first_rewards, second_rewards = calculate_reward(game_state=state, next_game_state=game_states[i+1], side=player_pointer)
         player_pointer *= -1 # Change to second player
-        second_layer_data[i] = [player_pointer, winner, reward]
+        second_layer_data[i] = [player_pointer, winner, first_rewards, second_rewards]
     return second_layer_data
 
 
@@ -101,7 +119,6 @@ def collect_target_variables(game_states: np.array) -> np.array:
 
     for i, state in enumerate(game_states[:-1]):
         move: np.array = get_move(game_state=state, next_game_state=game_states[i+1])
-        # print(move)
 
         # YOUR CODE TO ADD the move to variable vector (np.array).
 
@@ -135,8 +152,15 @@ if __name__ == "__main__":
         # print(train_batch.shape)
         second_layer: np.array = collect_second_layer(game_states=train_batch, winner=winner)
 
+        # print(train_batch[:, 2, :, :])
+        # continue
 
-        target_data = collect_target_variables(game_states=train_batch)
+        # for state, record in zip(train_batch, second_layer):
+        #     print("STATE: \n", state, "\nDATA: \n", record, "\n\n")
+
+
+        # target_data = collect_target_variables(game_states=train_batch)
+        # print(target_data)
 
         break
 
