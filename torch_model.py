@@ -66,13 +66,13 @@ def calculate_reward(game_state: np.array, next_game_state: np.array, side: int=
         white_pieces_changes,
         '\n\n'
     )
-    score_changes = np.sum(black_pieces_changes),  np.sum(white_pieces_changes)
+    score_changes = (np.sum(black_pieces_changes),  np.sum(white_pieces_changes))[::side]  # Reverse
     print(
         "SIDE:\n", side,
         "PLAYER REWARD: \n",
-        - score_changes[max(side, 0)], '\n',  # How much opposite player lost
-        score_changes[min(side, 0)],  # How much player earns
-          "\n")
+        score_changes[0] - score_changes[1], '\n',  # How much player earns AND How much opposite player lost
+        "\n"
+    )
     return np.sum(black_pieces_changes),  np.sum(white_pieces_changes)
     self.reward.append([])
 
