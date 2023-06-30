@@ -1,6 +1,7 @@
 """
 Module to represent game env, that is going to be used for RL
 """
+import pickle
 import numpy as np
 from itertools import product
 from typing import List, Tuple, Any
@@ -60,7 +61,6 @@ def build_empty_board(size) -> np.array:
 
     board = np.full((size, size), fill_value=white_square, dtype=dtype)
     board[1::2, ::2], board[::2, 1::2] = black_square, black_square
-
     return board
 
 def set_up_board(board, size) -> np.array:
@@ -113,7 +113,12 @@ def get_moves(piece: tuple, step: int, backward=True) -> list[tuple]:
     ]
 
 
-def get_moves_list(board: np.array, piece: tuple[int, int], player_pointer = 1, is_king: bool =False) -> List[tuple]:
+def get_moves_list(
+        board: np.array,
+       piece: tuple[int, int],
+       player_pointer = 1,
+       is_king: bool =False
+    ) -> List[tuple]:
     """
     Generator function to get all ways to capture. If any (for any piece), player
     if obliged to make it instead of simple move, so we check them all.
@@ -132,7 +137,9 @@ def get_moves_list(board: np.array, piece: tuple[int, int], player_pointer = 1, 
                 yield move
 
 
-def get_captures_list(board: np.array, piece: tuple[int, int], player_pointer = 1
+def get_captures_list(board: np.array,
+                      piece: tuple[int, int],
+                      player_pointer = 1
     ) -> List[tuple]:
     """
     Generator function to get all ways to capture. If any (for any piece), player
@@ -198,21 +205,6 @@ def one_hot_encode_matrix(matrix: np.array) -> np.array:
     return np.stack((ones_matrix, first_player_matrix, second_player_matrix), axis=0)  # shape is 3xSIZExSIZE
 
 
-def calculate_score(board_before: np.array, board_after: np.array, side: int = 1) ->tuple[int, int]:
-    """
-    Function to calculate player scores after his move.
-    The better the move, the higher the score.
-    We actually have to work only with scores player gets after HIS move,
-    so for game of X rounds we will have X train records, not 2X.
-
-    :param board_before:
-    :param board_after:
-    :param side:
-    :return:
-    """
-    print((np.sum(board_after - board_before) * side, np.sum(board_after - board_before) * (-side))[::side])
-    return (np.sum(board_after - board_before) * side, np.sum(board_after - board_before) * (-side))[::side][0]
-
 def calculate_reward(game_state: np.array, next_game_state: np.array, side: int=1) -> int:
     """
     Function to return reward value
@@ -234,11 +226,94 @@ def calculate_reward(game_state: np.array, next_game_state: np.array, side: int=
     return (np.sum(black_pieces_changes),  np.sum(white_pieces_changes))[0]
 
 
+def encode(matrix: list) -> int:
+    # a, b, c, d = matrix.flatten()
+    [a, b], [c, d] = matrix
+    encoded_value = ((a * 8 + b) * 8 + c) * 8 + d
+    return encoded_value
+
+
+def decode(n) -> List[List[int]]:
+    d = n % 8
+    c = n // 8
+    b = c // 8
+    c = c % 8
+    a = b // 8
+    b = b % 8
+
+    return (
+        [[a, b], [c, d]]
+    )
+
+
+def get_all_moves_endoded(size: int = 8):
+    """
+    Function to collect ALL possible moves.
+    I already know it's 172, but who's going to believe?
+    """
+    board = build_empty_board(size=size)
+    all_moves = set()
+
+    pieces: list = get_pieces_indexes(
+        board=board,
+        rank=1  # All black squares
+    )
+    for piece in pieces:
+
+        hypothetical_moves = get_moves(
+            piece=piece,
+            step=1,
+            backward=True
+        )
+        for move in hypothetical_moves:
+            if (0 <= move[0] < size) and (
+                    0 <= move[1] < size):
+                all_moves.add(
+                    encode([piece, move])
+                )
+
+        hypothetical_takes = get_moves(
+            piece=piece,
+            step=2,
+            backward=True
+        )
+        for take in hypothetical_takes:
+            if (0 <= take[0] < size) and (
+                    0 <= take[1] < size):
+                # if board[take] == 1:
+                all_moves.add(
+                    encode([piece, take])
+                )
+
+    return all_moves
+
+
+
+def save_set(s: set) -> set:
+    try:
+        with open("set_of_moves.pickle", "rb") as file:
+            old_set = pickle.load(file)
+    except FileNotFoundError:
+        old_set = set()
+    s.update(old_set)
+    with open("set_of_moves.pickle", "wb") as file:
+        pickle.dump(s, file)
+
+    print(
+        "TOTAL NUMBER OF MOVES IS: ", len(s),
+        # "\nMOVES ARE: \n", sorted(s)
+          )
+    return s
+
+
+
+
 class CheckersEnvironment:
     def __init__(self, size=8):
         board = build_empty_board(size=size)
         self.board = set_up_board(board, size)
         self.size = size
+        self.actions = set()
 
         # self.first_player = self.ComputerPlayer(game=self, side=1)
         # self.second_player = self.ComputerPlayer(game=self, side=-1)
@@ -276,7 +351,7 @@ class CheckersEnvironment:
         all_pieces = [*pieces, *kings]
 
         if not all_pieces:  # Empty
-            print("SKYNET LOST THE GAME. YOU'VE STOPPED THE MACHINE APOCALYPSE")
+            # End of the game
             return False
 
         takes: list[tuple[tuple[int, int]]] = []  # Tuples of start and end position
@@ -298,11 +373,22 @@ class CheckersEnvironment:
 
         # Finally, our move must be one of these
         moves = takes or moves  # takes have priority
+        k = False
         if moves:
+            if desired_move:
+                [a, b], [c, d] = desired_move
+                if ((a,b), (c, d)) in moves:
+                    # print("ХОД НЕ РАНДОМНЫЙ: ", desired_move)
+                    piece, move = desired_move
+                    k = True
             # print("Хотелось бы: ", desired_move)
-            piece, move = choose_random_move(board=board, moves_list=moves)
+            if not k:
+                piece, move = choose_random_move(board=board, moves_list=moves)
+
+            self.actions.add(encode([piece, move]))
+
         else:
-            print("SKYNET LOST THE GAME. YOU'VE STOPPED THE MACHINE APOCALYPSE")
+            # End of the game
             return False
 
         self.picked = piece
@@ -343,8 +429,9 @@ class CheckersEnvironment:
         # Here we transform move id to 2x2 matrix
         # TO-DO #
         board_before = self.board
+        action = decode(action)
         # made_move = self.make_move(side=player, desired_move=np.array([[1,0], [2,1]]))
-        made_move = self.make_move(side=player, desired_move=None)
+        made_move = self.make_move(side=player, desired_move=action)
         done = not made_move
         next_state = self.board
 
@@ -357,9 +444,20 @@ class CheckersEnvironment:
         return next_state, reward, done
 
 
-env = CheckersEnvironment()
 
-for episode in range(10):
+
+
+env = CheckersEnvironment()
+all_possible_moves = get_all_moves_endoded(size=8)
+
+print(
+    "LEN: ",
+    len(all_possible_moves), "\n",
+    # sorted(all_possible_moves)
+)
+
+
+for episode in range(1000):
         state = env.reset()
         # state = env.board
         done = False
@@ -367,10 +465,25 @@ for episode in range(10):
         player = 1
         while not done:
             # action = agent.act(state)
-            next_state, reward, done = env.step(action=1, player=player)
+            next_state, reward, done = env.step(action=2723, player=player)
             # agent.remember(state, action, reward, next_state, done)
             state = next_state
             total_reward += reward
             player *= -1
         # agent.replay(batch_size)
-        print("TOTAL REWARD: ", total_reward)
+        # print("TOTAL REWARD: ", total_reward)
+
+
+setet = save_set(env.actions)
+print("DIFFERENCE ARE: ", len(all_possible_moves - setet), len(setet - all_possible_moves))
+
+# sets1 = save_set(set()) - sets
+# sets1 = list(sets1)
+# sets1.sort()
+# print(sets1, "\n", len(sets1))
+#
+# sets =  sets - save_set(set())
+# sets = list(sets)
+# sets.sort()
+# print(sets, "\n", len(sets))
+# print(encode([[5,2], [4,3]]))
